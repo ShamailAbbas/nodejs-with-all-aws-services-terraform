@@ -11,6 +11,8 @@ app.use("/media", mediaRoutes);
 const PORT = config.Port;
 
 connectDB().then(async () => {
+    console.log("Database connected");
+    console.log("Syncing database...");
   await Media.sync({ alter: true }); // auto-create/update table
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 });

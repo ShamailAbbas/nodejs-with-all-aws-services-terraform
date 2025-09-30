@@ -1,5 +1,6 @@
 import { DataTypes } from "sequelize";
-import { sequelize } from "../db.js";
+import { sequelize } from "../db";
+
 
 const Media = sequelize.define("Media", {
   id: {
