@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Media Manager</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    input, button { margin: 5px 0; }
+    img, video { max-width: 300px; margin: 10px; display: block; }
+    .media-item { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <h1>Media Manager</h1>
+
+  <!-- Upload Form -->
+  <h2>Upload Media</h2>
+  <input type="text" id="title" placeholder="Title" /><br />
+  <input type="text" id="description" placeholder="Description" /><br />
+  <select id="type">
+    <option value="image">Image</option>
+    <option value="video">Video</option>
+  </select><br />
+  <input type="file" id="file" /><br />
+  <button onclick="uploadMedia()">Upload</button>
+
+  <hr />
+
+  <!-- Media List -->
+  <h2>Media List</h2>
+  <div id="media-list"></div>
+
+  <script>
+    const API_URL = "http://localhost:5000/media"; // Change to your backend URL
+
+    // Upload media
+    async function uploadMedia() {
+      const title = document.getElementById("title").value;
+      const description = document.getElementById("description").value;
+      const type = document.getElementById("type").value;
+      const fileInput = document.getElementById("file");
+      if (!fileInput.files[0]) return alert("Select a file!");
+
+      const formData = new FormData();
+      formData.append("title", title);
+      formData.append("description", description);
+      formData.append("type", type);
+      formData.append("file", fileInput.files[0]);
+
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: formData
+      });
+
+      if (res.ok) {
+        alert("Uploaded successfully!");
+        loadMedia();
+      } else {
+        alert("Upload failed!");
+      }
+    }
+
+    // Delete media
+    async function deleteMedia(id) {
+      const res = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        alert("Deleted successfully!");
+        loadMedia();
+      } else {
+        alert("Delete failed!");
+      }
+    }
+
+    // Load all media
+    async function loadMedia() {
+      const res = await fetch(API_URL);
+      const mediaList = await res.json();
+      const container = document.getElementById("media-list");
+      container.innerHTML = "";
+
+      mediaList.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "media-item";
+
+        const title = document.createElement("h3");
+        title.textContent = item.title;
+
+        const desc = document.createElement("p");
+        desc.textContent = item.description;
+
+        const typeElem = item.type === "image" ?
+          document.createElement("img") :
+          document.createElement("video");
+
+        typeElem.src = item.url;
+        if (item.type === "video") typeElem.controls = true;
+
+        const delBtn = document.createElement("button");
+        delBtn.textContent = "Delete";
+        delBtn.onclick = () => deleteMedia(item.id);
+
+        div.appendChild(title);
+        div.appendChild(desc);
+        div.appendChild(typeElem);
+        div.appendChild(delBtn);
+
+        container.appendChild(div);
+      });
+    }
+
+    // Initial load
+    loadMedia();
+  </script>
+</body>
+</html>
