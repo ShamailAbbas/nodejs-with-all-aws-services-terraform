@@ -22,10 +22,13 @@ export const connectDB = async () => {
 
   try {
     await sequelize.authenticate();
-    console.log("Postgres connected!");
+    console.log("✅ Postgres connected!");
   } catch (err) {
-    console.error("DB connection error:", err);
+    console.error("❌ DB connection error:", err);
+    throw err;
   }
+
+  return sequelize;
 };
 
 export { sequelize };
