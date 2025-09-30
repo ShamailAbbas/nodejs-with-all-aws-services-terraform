@@ -10,8 +10,12 @@ export const connectDB = async () => {
   const secret = await secretsManager
     .getSecretValue({ SecretId: config.dbSecretName })
     .promise();
-
+console.log("DB Secret:", secret);
+  if (!secret || !secret.SecretString) {
+    throw new Error("DB secret not found or empty");
+  }
   const dbCreds = JSON.parse(secret.SecretString);
+  console.log("DB Creds:", dbCreds);
 
   sequelize = new Sequelize(dbCreds.dbname, dbCreds.username, dbCreds.password, {
     host: dbCreds.host,
