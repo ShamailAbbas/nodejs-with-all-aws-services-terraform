@@ -48,4 +48,4 @@
         pm2 startup systemd -u ubuntu --hp /home/ubuntu
       args:
         creates: /etc/systemd/system/pm2-ubuntu.service
-      become_user: ubuntu
+      become: true
