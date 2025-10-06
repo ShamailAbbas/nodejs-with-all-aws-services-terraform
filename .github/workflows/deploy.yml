@@ -50,9 +50,9 @@ jobs:
               BACKEND_DIR="$APP_DIR/video-cms-backend"
 
               # Clone or update repository
-              if [ -d "\\\$APP_DIR" ]; then
+              if [ -d "$APP_DIR" ]; then
                 echo "Updating repository..."
-                cd \\\$APP_DIR
+                cd $APP_DIR
                 git fetch --all
                 git reset --hard origin/main
               else
