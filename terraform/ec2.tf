@@ -14,7 +14,7 @@ resource "aws_key_pair" "ec2_key" {
 # Optional: Save private key locally
 resource "local_file" "private_key" {
   content         = tls_private_key.ec2_key.private_key_pem
-  filename        = "${path.module}/${var.project_name}_ec2_key.pem"
+  filename        = "${path.module}/ssh-key.pem"
   file_permission = "0600"
 }
 

@@ -39,7 +39,7 @@ jobs:
           set -x
 
           APP_DIR="/home/ubuntu/nodejs-with-all-aws-services-terraform"
-          BACKEND_DIR="\$APP_DIR/video-cms-backend"
+          BACKEND_DIR="\$APP_DIR/backend"
 
           # Clone or update repository
           if [ -d "\$APP_DIR/.git" ]; then
