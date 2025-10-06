@@ -1,0 +1,102 @@
+name: Deploy Node.js App via Bastion
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout your repository
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2️⃣ Set environment variables from GitHub Secrets
+      - name: Set environment variables
+        run: |
+          echo "DB_SECRET_NAME=${{ secrets.DB_SECRET_NAME }}" >> $GITHUB_ENV
+          echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> $GITHUB_ENV
+          echo "S3_BUCKET_NAME=${{ secrets.S3_BUCKET_NAME }}" >> $GITHUB_ENV
+          echo "CLOUDFRONT_URL=${{ secrets.CLOUDFRONT_URL }}" >> $GITHUB_ENV
+          echo "REDIS_HOST=${{ secrets.REDIS_HOST }}" >> $GITHUB_ENV
+          echo "REDIS_PORT=${{ secrets.REDIS_PORT }}" >> $GITHUB_ENV
+          echo "PORT=${{ secrets.PORT }}" >> $GITHUB_ENV
+
+      # 3️⃣ Setup Bastion SSH key
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.BASTION_SSH_KEY }}" > ~/.ssh/bastion_key
+          chmod 600 ~/.ssh/bastion_key
+
+      # 4️⃣ Deploy to private EC2s via Bastion
+      - name: Deploy Node.js app to private EC2s
+        run: |
+          # Split comma-separated private IPs secret into an array
+          IFS=',' read -ra PRIVATE_ECS <<< "${{ secrets.PRIVATE_EC2_IPS }}"
+
+          for PRIVATE_IP in "${PRIVATE_ECS[@]}"; do
+            echo "Deploying to $PRIVATE_IP via Bastion..."
+
+            ssh -o StrictHostKeyChecking=no \
+                -i ~/.ssh/bastion_key \
+                -J ubuntu@${{ secrets.BASTION_PUBLIC_IP }} ubuntu@$PRIVATE_IP << 'EOF'
+
+              set -e
+
+              echo "Updating system packages..."
+              sudo apt-get update -y
+
+              echo "Installing required packages..."
+              sudo apt-get install -y git curl build-essential
+
+              echo "Installing Node.js 18.x..."
+              curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+              sudo apt-get install -y nodejs
+
+              echo "Installing pm2 globally..."
+              sudo npm install -g pm2
+
+              APP_DIR="/home/ubuntu/nodejs-with-all-aws-services-terraform"
+              BACKEND_DIR="$APP_DIR/video-cms-backend"
+
+              # Clone or update repository
+              if [ -d "$APP_DIR" ]; then
+                echo "Updating repository..."
+                cd $APP_DIR
+                git fetch --all
+                git reset --hard origin/main
+              else
+                echo "Cloning repository..."
+                git clone https://github.com/ShamailAbbas/nodejs-with-all-aws-services-terraform.git $APP_DIR
+              fi
+
+              # Install backend dependencies
+              cd $BACKEND_DIR
+              npm install --production
+
+              # Create .env file from environment variables
+              echo "Creating .env file..."
+              cat <<EOT > .env
+              DB_SECRET_NAME=${DB_SECRET_NAME}
+              AWS_REGION=${AWS_REGION}
+              S3_BUCKET_NAME=${S3_BUCKET_NAME}
+              CLOUDFRONT_URL=${CLOUDFRONT_URL}
+              REDIS_HOST=${REDIS_HOST}
+              REDIS_PORT=${REDIS_PORT}
+              PORT=${PORT}
+              EOT
+
+              # Stop existing PM2 process if running
+              pm2 stop nodeapp || true
+
+              # Start Node.js app with PM2
+              pm2 start "npm -- start" --name nodeapp --env production
+              pm2 save
+              pm2 startup systemd -u ubuntu --hp /home/ubuntu
+
+          EOF
+          done

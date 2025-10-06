@@ -24,7 +24,7 @@
         update_cache: yes
         cache_valid_time: 3600
 
-    - name: Ensure dependencies are installed
+    - name: Ensure required packages are installed
       apt:
         name:
           - git
@@ -32,7 +32,7 @@
           - build-essential
         state: present
 
-    - name: Install Node.js (LTS 18.x)
+    - name: Install Node.js 18.x (LTS)
       shell: |
         curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
         apt-get install -y nodejs
@@ -51,14 +51,13 @@
         dest: "{{ app_root }}"
         version: main
         force: yes
-      register: git_clone
 
     - name: Install backend dependencies
       npm:
         path: "{{ backend_dir }}"
         production: yes
 
-    - name: Create .env file for environment variables
+    - name: Create .env file with environment variables
       copy:
         dest: "{{ backend_dir }}/.env"
         content: |
@@ -69,16 +68,15 @@
         group: ubuntu
         mode: '0644'
 
-    - name: Stop existing pm2 process if running
-      shell: |
-        pm2 stop nodeapp || true
+    - name: Stop existing PM2 process if running
+      shell: pm2 stop nodeapp || true
       args:
         chdir: "{{ backend_dir }}"
       ignore_errors: true
 
     - name: Start Node.js app with pm2
       shell: |
-        pm2 start app.js --name nodeapp --env production
+        pm2 start "npm -- start" --name nodeapp --env production
         pm2 save
       args:
         chdir: "{{ backend_dir }}"

@@ -4,42 +4,135 @@
   <meta charset="UTF-8">
   <title>Media Manager</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    input, button { margin: 5px 0; }
-    img, video { max-width: 300px; margin: 10px; display: block; }
-    .media-item { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      background-color: #f7f9fc;
+      margin: 0;
+      padding: 30px;
+      color: #333;
+    }
+
+    h1 {
+      text-align: center;
+      color: #222;
+      margin-bottom: 30px;
+    }
+
+    button {
+      background-color: #0078ff;
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 15px;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: #005fcc;
+    }
+
+    #upload-btn {
+      display: block;
+      margin: 0 auto 20px;
+    }
+
+    #upload-form {
+      display: none;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 400px;
+      margin: 0 auto 30px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+
+    input, select {
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 8px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+
+    hr {
+      border: none;
+      height: 1px;
+      background-color: #ddd;
+      margin: 30px 0;
+    }
+
+    #media-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+    }
+
+    .media-item {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 15px;
+      width: 300px;
+      text-align: center;
+    }
+
+    .media-item img, .media-item video {
+      width: 100%;
+      border-radius: 6px;
+      margin-bottom: 10px;
+    }
+
+    .no-media {
+      text-align: center;
+      color: #777;
+      font-size: 16px;
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
   <h1>Media Manager</h1>
 
+  <button id="upload-btn" onclick="toggleUploadForm()">📤 Upload Media</button>
+
   <!-- Upload Form -->
-  <h2>Upload Media</h2>
-  <input type="text" id="title" placeholder="Title" /><br />
-  <input type="text" id="description" placeholder="Description" /><br />
-  <select id="type">
-    <option value="image">Image</option>
-    <option value="video">Video</option>
-  </select><br />
-  <input type="file" id="file" /><br />
-  <button onclick="uploadMedia()">Upload</button>
+  <div id="upload-form">
+    <input type="text" id="title" placeholder="Title" />
+    <input type="text" id="description" placeholder="Description" />
+    <select id="type">
+      <option value="image">Image</option>
+      <option value="video">Video</option>
+    </select>
+    <input type="file" id="file" />
+    <button onclick="uploadMedia()">Upload</button>
+  </div>
 
   <hr />
 
   <!-- Media List -->
-  <h2>Media List</h2>
+  <h2 style="text-align:center;">Your Media</h2>
   <div id="media-list"></div>
 
   <script>
-    const API_URL = "http://ec2-13-222-159-198.compute-1.amazonaws.com:5000/media"; // Change to your backend URL
+    const API_URL = "http://video-cms-alb-49770671.us-east-1.elb.amazonaws.com/media"; // Your backend URL
 
-    // Upload media
+    function toggleUploadForm() {
+      const form = document.getElementById("upload-form");
+      form.style.display = form.style.display === "none" || form.style.display === "" ? "block" : "none";
+    }
+
     async function uploadMedia() {
-      const title = document.getElementById("title").value;
-      const description = document.getElementById("description").value;
+      const title = document.getElementById("title").value.trim();
+      const description = document.getElementById("description").value.trim();
       const type = document.getElementById("type").value;
       const fileInput = document.getElementById("file");
-      if (!fileInput.files[0]) return alert("Select a file!");
+
+      if (!fileInput.files[0]) return alert("Please select a file!");
+      if (!title) return alert("Please enter a title.");
 
       const formData = new FormData();
       formData.append("title", title);
@@ -47,21 +140,18 @@
       formData.append("type", type);
       formData.append("file", fileInput.files[0]);
 
-      const res = await fetch(API_URL, {
-        method: "POST",
-        body: formData
-      });
-
+      const res = await fetch(API_URL, { method: "POST", body: formData });
       if (res.ok) {
         alert("Uploaded successfully!");
+        document.getElementById("upload-form").style.display = "none";
         loadMedia();
       } else {
         alert("Upload failed!");
       }
     }
 
-    // Delete media
     async function deleteMedia(id) {
+      if (!confirm("Are you sure you want to delete this media?")) return;
       const res = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
       if (res.ok) {
         alert("Deleted successfully!");
@@ -71,38 +161,30 @@
       }
     }
 
-    // Load all media
     async function loadMedia() {
       const res = await fetch(API_URL);
       const mediaList = await res.json();
       const container = document.getElementById("media-list");
       container.innerHTML = "";
 
+      if (!mediaList.length) {
+        container.innerHTML = '<div class="no-media">You don’t have any media yet. Just upload one! 📁</div>';
+        return;
+      }
+
       mediaList.forEach(item => {
         const div = document.createElement("div");
         div.className = "media-item";
 
-        const title = document.createElement("h3");
-        title.textContent = item.title;
-
-        const desc = document.createElement("p");
-        desc.textContent = item.description;
-
-        const typeElem = item.type === "image" ?
-          document.createElement("img") :
-          document.createElement("video");
-
-        typeElem.src = item.url;
-        if (item.type === "video") typeElem.controls = true;
-
-        const delBtn = document.createElement("button");
-        delBtn.textContent = "Delete";
-        delBtn.onclick = () => deleteMedia(item.id);
-
-        div.appendChild(title);
-        div.appendChild(desc);
-        div.appendChild(typeElem);
-        div.appendChild(delBtn);
+        div.innerHTML = `
+          <h3>${item.title}</h3>
+          <p>${item.description}</p>
+          ${item.type === "image"
+            ? `<img src="${item.url}" alt="${item.title}">`
+            : `<video src="${item.url}" controls></video>`
+          }
+          <button onclick="deleteMedia('${item.id}')">🗑️ Delete</button>
+        `;
 
         container.appendChild(div);
       });

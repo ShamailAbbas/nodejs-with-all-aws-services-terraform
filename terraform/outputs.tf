@@ -4,18 +4,11 @@ output "ec2_bastion_public_ip" {
   description = "Public IP of the backend EC2 instance"
 }
 output "ec2_backend_public_ip" {
-  value       = [for instance in aws_instance.backend : instance.public_ip]
+  value       = [for instance in aws_instance.backend : instance.private_ip]
   description = "Public IP of the backend EC2 instance"
 }
 
-output "ec2_backend_instance_id" {
-  value       = [for instance in aws_instance.backend : instance.id]
-  description = "EC2 instance ID"
-}
-output "ec2_bastion_instance_id" {
-  value       = aws_instance.bastion.id
-  description = "EC2 instance ID"
-}
+
 
 # S3 & CloudFront
 output "s3_bucket_name" {
