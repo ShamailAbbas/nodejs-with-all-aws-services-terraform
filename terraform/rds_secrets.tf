@@ -3,7 +3,7 @@
 # -----------------------
 resource "aws_db_subnet_group" "rds_subnets" {
   name       = "${var.project_name}-rds-subnets"
-  subnet_ids = [aws_subnet.public.id, aws_subnet.public_2.id]
+  subnet_ids = [aws_subnet.private_1.id, aws_subnet.private_2.id]
 
   tags = {
     Name = "${var.project_name}-rds-subnets"
@@ -31,7 +31,7 @@ resource "aws_security_group" "rds_sg" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [aws_subnet.private_1.cidr_block, aws_subnet.private_2.cidr_block]
   }
 
   tags = {

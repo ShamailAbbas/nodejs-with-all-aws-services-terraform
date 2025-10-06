@@ -1,19 +1,52 @@
-output "backend_public_ip" {
-  value = aws_instance.backend.public_ip
+# EC2
+output "ec2_bastion_public_ip" {
+  value       = aws_instance.bastion.public_ip
+  description = "Public IP of the backend EC2 instance"
+}
+output "ec2_backend_public_ip" {
+  value       = [for instance in aws_instance.backend : instance.public_ip]
+  description = "Public IP of the backend EC2 instance"
 }
 
+output "ec2_backend_instance_id" {
+  value       = [for instance in aws_instance.backend : instance.id]
+  description = "EC2 instance ID"
+}
+output "ec2_bastion_instance_id" {
+  value       = aws_instance.bastion.id
+  description = "EC2 instance ID"
+}
+
+# S3 & CloudFront
 output "s3_bucket_name" {
-  value = aws_s3_bucket.media_bucket.bucket
+  value       = aws_s3_bucket.media_bucket.id
+  description = "S3 bucket name"
 }
 
-output "cloudfront_url" {
-  value = aws_cloudfront_distribution.cdn.domain_name
+output "cloudfront_domain_name" {
+  value       = aws_cloudfront_distribution.cdn.domain_name
+  description = "CloudFront distribution domain name"
 }
 
+# RDS
 output "rds_endpoint" {
-  value = aws_db_instance.postgres.address
+  value       = aws_db_instance.postgres.address
+  description = "RDS endpoint"
 }
 
+output "db_secret_arn" {
+  value       = aws_secretsmanager_secret.db_secret.arn
+  description = "Secrets Manager ARN for DB credentials"
+}
+
+# Redis
 output "redis_endpoint" {
-  value = aws_elasticache_cluster.redis.cache_nodes[0].address
+  value       = aws_elasticache_cluster.redis.cache_nodes[0].address
+  description = "Redis endpoint"
+}
+
+
+output "alb_dns_name" {
+  value       = aws_alb.backend_alb.dns_name
+  description = "DNS name of the ALB"
 }

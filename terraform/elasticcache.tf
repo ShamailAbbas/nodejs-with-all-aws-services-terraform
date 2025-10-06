@@ -1,6 +1,6 @@
 resource "aws_elasticache_subnet_group" "redis_subnet" {
   name       = "${var.project_name}-redis-subnet"
-  subnet_ids = [aws_subnet.public.id]
+  subnet_ids = [aws_subnet.private_1.id, aws_subnet.private_2.id]
 }
 
 resource "aws_security_group" "redis_sg" {
@@ -18,7 +18,7 @@ resource "aws_security_group" "redis_sg" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [aws_vpc.main.cidr_block]
   }
 }
 
