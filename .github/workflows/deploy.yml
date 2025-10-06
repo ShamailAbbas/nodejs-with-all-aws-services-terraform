@@ -70,13 +70,13 @@ jobs:
           # Create .env file from environment variables
           echo "Creating .env file..."
           cat > .env <<EOT
-          DB_SECRET_NAME=$DB_SECRET_NAME
-          AWS_REGION=$AWS_REGION
-          S3_BUCKET_NAME=$S3_BUCKET_NAME
-          CLOUDFRONT_URL=$CLOUDFRONT_URL
-          REDIS_HOST=$REDIS_HOST
-          REDIS_PORT=$REDIS_PORT
-          PORT=$PORT
+          DB_SECRET_NAME=${{ secrets.DB_SECRET_NAME }}
+          AWS_REGION=${{ secrets.AWS_REGION }}
+          S3_BUCKET_NAME=${{ secrets.S3_BUCKET_NAME }}
+          CLOUDFRONT_URL=${{ secrets.CLOUDFRONT_URL }}
+          REDIS_HOST=${{ secrets.REDIS_HOST }}
+          REDIS_PORT=${{ secrets.REDIS_PORT }}
+          PORT=${{ secrets.PORT }}
           EOT
 
           # Stop existing PM2 process if running
