@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout your repository
+      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -41,39 +41,26 @@ jobs:
             ssh -tt -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
                 -i ~/.ssh/bastion_key \
                 -o ProxyCommand="ssh -i ~/.ssh/bastion_key -o StrictHostKeyChecking=no -W %h:%p ubuntu@${{ secrets.BASTION_PUBLIC_IP }}" \
-                ubuntu@$PRIVATE_IP << EOF
+                ubuntu@$PRIVATE_IP << 'EOF'
 
               set -e
 
-              echo "Updating system packages..."
-              sudo apt-get update -y
-
-              echo "Installing required packages..."
-              sudo apt-get install -y git curl build-essential
-
-              echo "Installing Node.js 18.x..."
-              curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-              sudo apt-get install -y nodejs
-
-              echo "Installing pm2 globally..."
-              sudo npm install -g pm2
-
               APP_DIR="/home/ubuntu/nodejs-with-all-aws-services-terraform"
-              BACKEND_DIR="\$APP_DIR/video-cms-backend"
+              BACKEND_DIR="$APP_DIR/video-cms-backend"
 
               # Clone or update repository
-              if [ -d "\$APP_DIR" ]; then
+              if [ -d "$APP_DIR" ]; then
                 echo "Updating repository..."
-                cd \$APP_DIR
+                cd $APP_DIR
                 git fetch --all
                 git reset --hard origin/main
               else
                 echo "Cloning repository..."
-                git clone https://github.com/ShamailAbbas/nodejs-with-all-aws-services-terraform.git \$APP_DIR
+                git clone https://github.com/ShamailAbbas/nodejs-with-all-aws-services-terraform.git $APP_DIR
               fi
 
               # Install backend dependencies
-              cd \$BACKEND_DIR
+              cd $BACKEND_DIR
               npm install --production
 
               # Create .env file from environment variables
