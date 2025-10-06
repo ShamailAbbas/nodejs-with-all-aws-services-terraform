@@ -41,7 +41,7 @@ jobs:
           for PRIVATE_IP in "${PRIVATE_ECS[@]}"; do
             echo "Deploying to $PRIVATE_IP via Bastion..."
 
-            ssh -o StrictHostKeyChecking=no \
+            ssh -tt -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
                 -i ~/.ssh/bastion_key \
                 -J ubuntu@${{ secrets.BASTION_PUBLIC_IP }} ubuntu@$PRIVATE_IP << 'EOF'
 
