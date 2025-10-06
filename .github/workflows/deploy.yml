@@ -8,20 +8,42 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15  # Fail fast if deployment hangs
 
     steps:
       # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2️⃣ Setup Bastion SSH key
-      - name: Setup SSH key
+      # 2️⃣ Setup Bastion SSH key with connection multiplexing
+      - name: Setup SSH key and config
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.BASTION_SSH_KEY }}" > ~/.ssh/bastion_key
           chmod 600 ~/.ssh/bastion_key
 
-      # 3️⃣ Deploy to private EC2s via Bastion
+          # Enable SSH connection multiplexing for faster connections
+          cat >> ~/.ssh/config <<EOL
+          Host bastion
+            HostName ${{ secrets.BASTION_PUBLIC_IP }}
+            User ubuntu
+            IdentityFile ~/.ssh/bastion_key
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+            ControlMaster auto
+            ControlPath ~/.ssh/cm-%r@%h:%p
+            ControlPersist 5m
+            ServerAliveInterval 30
+            ServerAliveCountMax 3
+          EOL
+
+      # 3️⃣ Start SSH Control Master connection
+      - name: Establish SSH Control Master
+        run: |
+          ssh -fN bastion
+          sleep 2
+
+      # 4️⃣ Deploy to private EC2s via Bastion (in parallel)
       - name: Deploy Node.js app to private EC2s
         env:
           DB_SECRET_NAME: ${{ secrets.DB_SECRET_NAME }}
@@ -32,18 +54,23 @@ jobs:
           REDIS_PORT: ${{ secrets.REDIS_PORT }}
           PORT: ${{ secrets.PORT }}
         run: |
-          # Split comma-separated private IPs secret into an array
           IFS=',' read -ra PRIVATE_ECS <<< "${{ secrets.PRIVATE_EC2_IPS }}"
 
-          for PRIVATE_IP in "${PRIVATE_ECS[@]}"; do
+          # Create a function for parallel deployment
+          deploy_to_instance() {
+            local PRIVATE_IP=$1
             echo "Deploying to $PRIVATE_IP via Bastion..."
 
-            ssh -tt -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            ssh -o ProxyCommand="ssh -W %h:%p bastion" \
+                -o StrictHostKeyChecking=no \
+                -o ConnectTimeout=30 \
+                -o ServerAliveInterval=15 \
+                -o ServerAliveCountMax=3 \
                 -i ~/.ssh/bastion_key \
-                -o ProxyCommand="ssh -i ~/.ssh/bastion_key -o StrictHostKeyChecking=no -W %h:%p ubuntu@${{ secrets.BASTION_PUBLIC_IP }}" \
-                ubuntu@$PRIVATE_IP << 'EOF'
+                ubuntu@$PRIVATE_IP bash -s <<'EOF'
 
               set -e
+              export PATH="$PATH:/usr/local/bin:$HOME/.nvm/versions/node/$(nvm current)/bin"
 
               APP_DIR="/home/ubuntu/nodejs-with-all-aws-services-terraform"
               BACKEND_DIR="$APP_DIR/video-cms-backend"
@@ -52,36 +79,65 @@ jobs:
               if [ -d "$APP_DIR" ]; then
                 echo "Updating repository..."
                 cd $APP_DIR
-                git fetch --all
+                git fetch origin main --depth=1
                 git reset --hard origin/main
+                git clean -fd
               else
                 echo "Cloning repository..."
-                git clone https://github.com/ShamailAbbas/nodejs-with-all-aws-services-terraform.git $APP_DIR
+                git clone --depth=1 --single-branch --branch main \
+                  https://github.com/ShamailAbbas/nodejs-with-all-aws-services-terraform.git $APP_DIR
               fi
 
-              # Install backend dependencies
               cd $BACKEND_DIR
-              npm install --production
 
-              # Create .env file from environment variables
-              echo "Creating .env file..."
-              cat <<EOT > .env
-              DB_SECRET_NAME=${DB_SECRET_NAME}
-              AWS_REGION=${AWS_REGION}
-              S3_BUCKET_NAME=${S3_BUCKET_NAME}
-              CLOUDFRONT_URL=${CLOUDFRONT_URL}
-              REDIS_HOST=${REDIS_HOST}
-              REDIS_PORT=${REDIS_PORT}
-              PORT=${PORT}
-              EOT
+              # Use npm ci instead of npm install (faster and more reliable)
+              # Only install if package-lock.json changed
+              if [ ! -d "node_modules" ] || [ package-lock.json -nt node_modules ]; then
+                echo "Installing dependencies..."
+                npm ci --production --prefer-offline --no-audit
+              else
+                echo "Dependencies up to date, skipping install..."
+              fi
 
-              # Stop existing PM2 process if running
-              pm2 stop nodeapp || true
+              # Create .env file
+              cat > .env <<EOT
+          DB_SECRET_NAME=${DB_SECRET_NAME}
+          AWS_REGION=${AWS_REGION}
+          S3_BUCKET_NAME=${S3_BUCKET_NAME}
+          CLOUDFRONT_URL=${CLOUDFRONT_URL}
+          REDIS_HOST=${REDIS_HOST}
+          REDIS_PORT=${REDIS_PORT}
+          PORT=${PORT}
+          EOT
 
-              # Start Node.js app with PM2
-              pm2 start npm --name nodeapp -- start
+              # Graceful reload with PM2
+              if pm2 describe nodeapp > /dev/null 2>&1; then
+                echo "Reloading existing PM2 process..."
+                pm2 reload nodeapp --update-env
+              else
+                echo "Starting new PM2 process..."
+                pm2 start npm --name nodeapp -- start
+                pm2 startup systemd -u ubuntu --hp /home/ubuntu || true
+              fi
+
               pm2 save
-              pm2 startup systemd -u ubuntu --hp /home/ubuntu
 
+              echo "✅ Deployment to $(hostname -I | awk '{print $1}') completed successfully"
           EOF
-          done
+          }
+
+          # Export function and variables for parallel execution
+          export -f deploy_to_instance
+          export DB_SECRET_NAME AWS_REGION S3_BUCKET_NAME CLOUDFRONT_URL REDIS_HOST REDIS_PORT PORT
+
+          # Deploy to all instances in parallel (limit to 3 concurrent)
+          printf '%s\n' "${PRIVATE_ECS[@]}" | xargs -P 3 -I {} bash -c 'deploy_to_instance "$@"' _ {}
+
+          echo "🎉 All deployments completed!"
+
+      # 5️⃣ Close SSH Control Master
+      - name: Cleanup SSH connections
+        if: always()
+        run: |
+          ssh -O exit bastion 2>/dev/null || true
+          rm -f ~/.ssh/cm-* ~/.ssh/bastion_key
