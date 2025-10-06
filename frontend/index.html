@@ -180,8 +180,8 @@
           <h3>${item.title}</h3>
           <p>${item.description}</p>
           ${item.type === "image"
-            ? `<img src="${item.url}" alt="${item.title}">`
-            : `<video src="${item.url}" controls></video>`
+            ? `<img src="https://${item.url}" alt="${item.title}">`
+            : `<video src="https://${item.url}" controls></video>`
           }
           <button onclick="deleteMedia('${item.id}')">🗑️ Delete</button>
         `;

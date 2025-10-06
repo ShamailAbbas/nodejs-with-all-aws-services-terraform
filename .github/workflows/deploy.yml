@@ -23,14 +23,6 @@ jobs:
 
       # 3️⃣ Deploy to private EC2s via Bastion
       - name: Deploy Node.js app to private EC2s
-        env:
-          DB_SECRET_NAME: ${{ secrets.DB_SECRET_NAME }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-          S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
-          CLOUDFRONT_URL: ${{ secrets.CLOUDFRONT_URL }}
-          REDIS_HOST: ${{ secrets.REDIS_HOST }}
-          REDIS_PORT: ${{ secrets.REDIS_PORT }}
-          PORT: ${{ secrets.PORT }}
         run: |
           # Split comma-separated private IPs secret into an array
           IFS=',' read -ra PRIVATE_EC2 <<< "${{ secrets.PRIVATE_EC2_IPS }}"
@@ -38,33 +30,31 @@ jobs:
           for PRIVATE_IP in "${PRIVATE_EC2[@]}"; do
             echo "Deploying to $PRIVATE_IP via Bastion..."
 
-            ssh -tt -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
                 -o ConnectTimeout=10 -o ServerAliveInterval=30 \
                 -i ~/.ssh/bastion_key \
                 -o ProxyCommand="ssh -i ~/.ssh/bastion_key -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o ServerAliveInterval=30 -W %h:%p ubuntu@${{ secrets.BASTION_PUBLIC_IP }}" \
-                ubuntu@$PRIVATE_IP << 'REMOTE_EOF'
+                ubuntu@$PRIVATE_IP /bin/bash <<REMOTE_EOF
           set -e
-          set -x  # Show each command executed for debugging
+          set -x
 
           APP_DIR="/home/ubuntu/nodejs-with-all-aws-services-terraform"
-          BACKEND_DIR="$APP_DIR/video-cms-backend"
+          BACKEND_DIR="\$APP_DIR/video-cms-backend"
 
           # Clone or update repository
-          if [ -d "$APP_DIR/.git" ]; then
+          if [ -d "\$APP_DIR/.git" ]; then
             echo "Updating repository..."
-            cd "$APP_DIR"
+            cd "\$APP_DIR"
             git fetch --all
             git reset --hard origin/main
           else
             echo "Cloning repository..."
-            git clone --depth=1 https://github.com/ShamailAbbas/nodejs-with-all-aws-services-terraform.git "$APP_DIR"
+            git clone --depth=1 https://github.com/ShamailAbbas/nodejs-with-all-aws-services-terraform.git "\$APP_DIR"
           fi
 
-          echo "Current working directory: $(pwd)"
-
           # Install backend dependencies
-          cd "$BACKEND_DIR"
-          echo "Inside backend directory: $(pwd)"
+          cd "\$BACKEND_DIR"
+          echo "Inside backend directory: \$(pwd)"
           npm install --production
 
           # Create .env file from environment variables
@@ -87,8 +77,10 @@ jobs:
           pm2 save
           sudo pm2 startup systemd -u ubuntu --hp /home/ubuntu
 
-          echo "Deployment complete!"
+          echo "Deployment complete for $PRIVATE_IP!"
           REMOTE_EOF
 
-              done
+            echo "✅ Finished deploying to $PRIVATE_IP"
+          done
 
+          echo "🎉 All deployments completed!"
