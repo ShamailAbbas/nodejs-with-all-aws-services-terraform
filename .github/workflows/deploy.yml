@@ -69,6 +69,9 @@ jobs:
           PORT=${{ secrets.PORT }}
           EOT
 
+          # install pm2
+          sudo npm install -g pm2
+
           # Stop existing PM2 process if running
           pm2 stop nodeapp || true
 
