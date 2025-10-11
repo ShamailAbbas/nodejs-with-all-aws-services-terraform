@@ -83,7 +83,7 @@ jobs:
           echo "Deployment complete for $PRIVATE_IP!"
           REMOTE_EOF
 
-            echo "✅ Finished deploying to $PRIVATE_IP"
+          echo "✅ Finished deploying to $PRIVATE_IP"
           done
 
           echo "🎉 All deployments completed!"
