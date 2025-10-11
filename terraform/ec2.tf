@@ -93,7 +93,7 @@ resource "aws_instance" "backend" {
   count                  = var.backend_instance_count
   ami                    = var.ec2_ami
   instance_type          = var.ec2_instance_type
-  subnet_id              = aws_subnet.private_1.id
+  subnet_id              = [aws_subnet.backend-private_subnet_1.id, aws_subnet.backend-private_subnet_2.id][count.index]
   vpc_security_group_ids = [aws_security_group.backend_sg.id]
   iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
   key_name               = aws_key_pair.ec2_key.key_name

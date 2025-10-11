@@ -1,6 +1,6 @@
 resource "aws_elasticache_subnet_group" "redis_subnet" {
   name       = "${var.project_name}-redis-subnet"
-  subnet_ids = [aws_subnet.private_1.id, aws_subnet.private_2.id]
+  subnet_ids = [aws_subnet.backend-private_subnet_1.id, aws_subnet.backend-private_subnet_2.id]
 }
 
 resource "aws_security_group" "redis_sg" {

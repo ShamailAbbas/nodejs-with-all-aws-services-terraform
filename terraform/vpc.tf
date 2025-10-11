@@ -27,21 +27,38 @@ resource "aws_subnet" "public_2" {
   tags                    = { Name = "${var.project_name}-public-subnet-2" }
 }
 
-# Private subnets
-resource "aws_subnet" "private_1" {
+# Backend Private subnets
+resource "aws_subnet" "backend-private_subnet_1" {
   vpc_id     = aws_vpc.main.id
   cidr_block = "10.0.3.0/24"
 
   availability_zone = data.aws_availability_zones.available.names[0]
-  tags              = { Name = "${var.project_name}-private-subnet-1" }
+  tags              = { Name = "${var.project_name}-backend-private-subnet-1" }
 }
 
-resource "aws_subnet" "private_2" {
+resource "aws_subnet" "backend-private_subnet_2" {
   vpc_id     = aws_vpc.main.id
   cidr_block = "10.0.4.0/24"
 
   availability_zone = data.aws_availability_zones.available.names[1]
-  tags              = { Name = "${var.project_name}-private-subnet-2" }
+  tags              = { Name = "${var.project_name}-backend-private-subnet-2" }
+}
+
+# Database Private subnets
+resource "aws_subnet" "db-private_subnet_1" {
+  vpc_id     = aws_vpc.main.id
+  cidr_block = "10.0.5.0/24"
+
+  availability_zone = data.aws_availability_zones.available.names[0]
+  tags              = { Name = "${var.project_name}-db-private-subnet-1" }
+}
+
+resource "aws_subnet" "db-private_subnet_2" {
+  vpc_id     = aws_vpc.main.id
+  cidr_block = "10.0.6.0/24"
+
+  availability_zone = data.aws_availability_zones.available.names[1]
+  tags              = { Name = "${var.project_name}-db-private-subnet-2" }
 }
 
 # Internet Gateway
@@ -92,14 +109,23 @@ resource "aws_route_table_association" "public_assoc_2" {
   subnet_id      = aws_subnet.public_2.id
   route_table_id = aws_route_table.public.id
 }
-
+# Private Route Table Associations for Backend subnets
 resource "aws_route_table_association" "private_assoc_1" {
-  subnet_id      = aws_subnet.private_1.id
+  subnet_id      = aws_subnet.backend-private_subnet_1.id
   route_table_id = aws_route_table.private.id
 
 }
 resource "aws_route_table_association" "private_assoc_2" {
-  subnet_id      = aws_subnet.private_2.id
+  subnet_id      = aws_subnet.backend-private_subnet_2.id
   route_table_id = aws_route_table.private.id
 
+}
+# Private Route Table Associations for Database subnets
+resource "aws_route_table_association" "db_private_assoc_1" {
+  subnet_id      = aws_subnet.db-private_subnet_1.id
+  route_table_id = aws_route_table.private.id
+}
+resource "aws_route_table_association" "db_private_assoc_2" {
+  subnet_id      = aws_subnet.db-private_subnet_2.id
+  route_table_id = aws_route_table.private.id
 }
